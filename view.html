@@ -42,6 +42,9 @@
     var canvasParam = urlParams.get('canvas');
     var viewParam = urlParams.get('view');
 
+    // ONLY for testing, comment for production!
+    itemParam = 'ab816400078'
+    
     // Build manifest URL from item parameter if manifest not provided
     // Beware the manifest2 fixed string - this should be changed in the future.
     if (!manifestUrl && itemParam) {
@@ -69,7 +72,7 @@
 
         // Determine sidebar configuration from view parameter
         var sideBarOpen = true;
-        var sideBarPanel = 'annotations'; // default
+        var sideBarPanel = 'info'; // default
 
         if (viewParam) {
             // Valid panels: info, attribution, annotations, canvas
@@ -87,25 +90,43 @@
             thumbnailNavigation: {
                 defaultPosition: 'far-right'
             },
-            "workspaceControlPanel": {
-                "enabled": false,
+            workspaceControlPanel: {
+                enabled: false,
             },
-            "window": {
-                "sideBarOpen": sideBarOpen,
-                "sideBarPanel": sideBarPanel,
-                "defaultSidebarPanelWidth": 350,
-                "panels": {
-                    "info": true,
-                    "attribution": true,
-                    "annotations": true,
-                    "canvas": true,
-                    "search": false,
-                    "layers": false,
+            window: {
+                sideBarOpen: sideBarOpen,
+                sideBarPanel: sideBarPanel,
+                defaultSidebarPanelWidth: 350,
+                allowClose: false,
+                allowMaximize: false,
+                allowFullscreen: true,
+                allowTopMenuButton: true,
+                allowWindowSideBar: true,
+                panels: {
+                    info: true,
+                    attribution: true,
+                    annotations: true,
+                    canvas: true,
+                    search: false,
+                    layers: false,
                 },
-                "thumbnailNavigation": {
-                    "height": 130,
-                    "width": 100
+                thumbnailNavigation: {
+                    height: 130,
+                    width: 100
                 }
+            },
+            requests: {
+                preprocessors: []
+            },
+            "osdConfig": {
+                "showNavigator": true
+            },
+            "workspace": {
+                "showZoomControls": true
+            },
+            "windowOptions": {
+                "imageToolsEnabled": true,
+                "imageToolsOpen": false
             },
             themes: {
                 dark: {
@@ -180,6 +201,44 @@
             }
         }, true); // Capture phase
     }
+
+    // Add custom download button
+    var downloadButton = document.createElement('button');
+    downloadButton.innerHTML = '⬇';
+    downloadButton.style.cssText = 
+        'position: fixed; bottom: 25px; right: 160px; z-index: 9999; padding: 10px 15px; background: #8E1B15; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: Roboto, sans-serif; font-size: 14px; display: none;';
+
+    downloadButton.addEventListener('click', function() {
+        var state = store.getState();
+        var windowIds = Object.keys(state.windows);
+        if (windowIds.length > 0) {
+            var canvasId = state.windows[windowIds[0]].canvasId;
+            var canvasMatch = canvasId.match(/@(\d+)-canvas/);
+            if (canvasMatch) {
+                var canvasNumber = canvasMatch[1];
+                var objectMatch = manifestUrl.match(/iiif\/(?:2\/)?([^\/]+)\//);
+                if (objectMatch) {
+                    var objectId = objectMatch[1];
+                    // Construct IIIF image download URL with max 2000px dimension
+                    var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/!2000,2000/0/default.jpg';
+                    window.open(downloadUrl, '_blank');
+                }
+            }
+        }
+    });
+
+    document.body.appendChild(downloadButton);
+
+    // Show/hide download button based on view mode
+    store.subscribe(function() {
+        var state = store.getState();
+        var windowIds = Object.keys(state.windows);
+        if (windowIds.length > 0) {
+            var view = state.windows[windowIds[0]].view;
+            // Show button only in single page view
+            downloadButton.style.display = (view === 'single') ? 'block' : 'none';
+        }
+    });
 </script>
 </body>
 </html>
