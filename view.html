@@ -154,13 +154,67 @@
             },
         });
 
-        // Define store FIRST
+// Define store FIRST
         var store = mirador.store;
 
         var lastViewport = null;
         var viewportUpdateTimeout;
+        var allowUrlUpdates = false;
+
+// Target viewport from URL
+        var targetX = urlParams.get('x');
+        var targetY = urlParams.get('y');
+        var targetZoom = urlParams.get('z');
+
+// Wait for viewport to stabilize, then force it to URL values
+        setTimeout(function() {
+            var stableCheckCount = 0;
+            var lastCheckedViewport = null;
+
+            var stabilityCheck = setInterval(function() {
+                var state = store.getState();
+                var windowIds = Object.keys(state.windows);
+
+                if (windowIds.length > 0 && state.viewers[windowIds[0]]) {
+                    var viewerState = state.viewers[windowIds[0]];
+                    var currentCheck = viewerState.x + ',' + viewerState.y + ',' + viewerState.zoom;
+
+                    if (currentCheck === lastCheckedViewport) {
+                        stableCheckCount++;
+                        if (stableCheckCount >= 3) {
+                            clearInterval(stabilityCheck);
+
+                            // NOW force the viewport to URL parameters
+                            if (targetX && targetY && targetZoom) {
+                                store.dispatch({
+                                    type: 'mirador/UPDATE_VIEWPORT',
+                                    windowId: windowIds[0],
+                                    payload: {
+                                        x: parseFloat(targetX),
+                                        y: parseFloat(targetY),
+                                        zoom: parseFloat(targetZoom) / 1000
+                                    }
+                                });
+                                console.log('Forced viewport to URL values:', targetX, targetY, targetZoom);
+                            }
+
+                            // Enable URL updates after a brief delay
+                            setTimeout(function() {
+                                allowUrlUpdates = true;
+                                console.log('URL updates enabled');
+                            }, 1000);
+                        }
+                    } else {
+                        stableCheckCount = 0;
+                        lastCheckedViewport = currentCheck;
+                    }
+                }
+            }, 500);
+        }, 2000);
 
         store.subscribe(function() {
+            if (!allowUrlUpdates) return;
+
             var state = store.getState();
             var windowIds = Object.keys(state.windows);
 
@@ -171,7 +225,6 @@
                 if (viewerState) {
                     var currentViewport = viewerState.x + ',' + viewerState.y + ',' + viewerState.zoom;
 
-                    // Only update if viewport actually changed
                     if (currentViewport !== lastViewport) {
                         lastViewport = currentViewport;
 
@@ -180,7 +233,7 @@
                             var newUrlParams = new URLSearchParams(window.location.search);
                             newUrlParams.set('x', '' + Math.round(Number(viewerState.x)));
                             newUrlParams.set('y', '' + Math.round(Number(viewerState.y)));
-                            newUrlParams.set('z', (Number(viewerState.zoom) * 1000).toFixed(3)); // multiply by 1000
+                            newUrlParams.set('z', (Number(viewerState.zoom) * 1000).toFixed(3));
 
                             var newUrl = window.location.pathname + '?' + newUrlParams.toString();
                             window.history.replaceState(null, '', newUrl);
@@ -289,6 +342,35 @@
             }
         }, true);
     }
+
+    // setTimeout(function() {
+    //     var x = urlParams.get('x');
+    //     var y = urlParams.get('y');
+    //     var zoom = urlParams.get('z');
+    //
+    //     console.log('URL params:', x, y, zoom);
+    //
+    //     if (x && y && zoom) {
+    //         var windowIds = Object.keys(store.getState().windows);
+    //         if (windowIds.length > 0) {
+    //             console.log('Before dispatch - viewer state:', store.getState().viewers[windowIds[0]]);
+    //
+    //             store.dispatch({
+    //                 type: 'mirador/UPDATE_VIEWPORT',
+    //                 windowId: windowIds[0],
+    //                 payload: {
+    //                     x: parseFloat(x),
+    //                     y: parseFloat(y),
+    //                     zoom: parseFloat(zoom) / 1000
+    //                 }
+    //             });
+    //
+    //             setTimeout(function() {
+    //                 console.log('After dispatch - viewer state:', store.getState().viewers[windowIds[0]]);
+    //             }, 100);
+    //         }
+    //     }
+    // }, 1000);
 </script>
 </body>
 </html>
