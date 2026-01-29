@@ -43,7 +43,7 @@
     var viewParam = urlParams.get('view');
 
     // ONLY for testing, comment for production!
-    itemParam = 'ab816400078'
+    // itemParam = 'ab816400078'
     
     // Build manifest URL from item parameter if manifest not provided
     // Beware the manifest2 fixed string - this should be changed in the future.
@@ -154,10 +154,66 @@
             },
         });
 
-// Listen for canvas changes and update URL
+        // Define store FIRST
         var store = mirador.store;
-        var currentCanvasId = null;
 
+        var lastViewport = null;
+        var viewportUpdateTimeout;
+
+        store.subscribe(function() {
+            var state = store.getState();
+            var windowIds = Object.keys(state.windows);
+
+            if (windowIds.length > 0) {
+                var windowId = windowIds[0];
+                var viewerState = state.viewers[windowId];
+
+                if (viewerState) {
+                    var currentViewport = viewerState.x + ',' + viewerState.y + ',' + viewerState.zoom;
+
+                    // Only update if viewport actually changed
+                    if (currentViewport !== lastViewport) {
+                        lastViewport = currentViewport;
+
+                        clearTimeout(viewportUpdateTimeout);
+                        viewportUpdateTimeout = setTimeout(function() {
+                            var newUrlParams = new URLSearchParams(window.location.search);
+                            newUrlParams.set('x', '' + Math.round(Number(viewerState.x)));
+                            newUrlParams.set('y', '' + Math.round(Number(viewerState.y)));
+                            newUrlParams.set('z', (Number(viewerState.zoom) * 1000).toFixed(3)); // multiply by 1000
+
+                            var newUrl = window.location.pathname + '?' + newUrlParams.toString();
+                            window.history.replaceState(null, '', newUrl);
+                        }, 500);
+                    }
+                }
+            }
+        });
+
+// To restore viewport on load, dispatch an action to Mirador
+        setTimeout(function() {
+            var x = urlParams.get('x');
+            var y = urlParams.get('y');
+            var zoom = urlParams.get('z');
+
+            if (x && y && zoom) {
+                var windowIds = Object.keys(store.getState().windows);
+                if (windowIds.length > 0) {
+                    store.dispatch({
+                        type: 'mirador/UPDATE_VIEWPORT',
+                        windowId: windowIds[0],
+                        payload: {
+                            x: parseFloat(x),
+                            y: parseFloat(y),
+                            zoom: parseFloat(zoom) / 1000  // divide by 1000
+                        }
+                    });
+                }
+            }
+        }, 1000);
+        
+        // Listen for canvas changes and update URL
+        var currentCanvasId = null;
         store.subscribe(function () {
             var state = store.getState();
             var windowIds = Object.keys(state.windows);
@@ -166,16 +222,13 @@
                 var firstWindowId = windowIds[0];
                 var canvasId = state.windows[firstWindowId].canvasId;
 
-                // Only update if canvas actually changed
                 if (canvasId && canvasId !== currentCanvasId) {
                     currentCanvasId = canvasId;
 
-                    // Extract canvas number from canvas ID
                     var canvasMatch = canvasId.match(/@(\d+)-canvas/);
                     if (canvasMatch) {
                         var canvasNumber = parseInt(canvasMatch[1], 10);
 
-                        // Update URL with new canvas parameter
                         var newUrlParams = new URLSearchParams(window.location.search);
                         newUrlParams.set('canvas', canvasNumber);
 
@@ -186,10 +239,45 @@
             }
         });
 
+        // Add custom download button
+        var downloadButton = document.createElement('button');
+        downloadButton.innerHTML = '⬇';
+        downloadButton.style.cssText =
+            'position: fixed; bottom: 25px; right: 160px; z-index: 9999; padding: 10px 15px; background: #8E1B15; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: Roboto, sans-serif; font-size: 14px; display: none;';
+
+        downloadButton.addEventListener('click', function() {
+            var state = store.getState();
+            var windowIds = Object.keys(state.windows);
+            if (windowIds.length > 0) {
+                var canvasId = state.windows[windowIds[0]].canvasId;
+                var canvasMatch = canvasId.match(/@(\d+)-canvas/);
+                if (canvasMatch) {
+                    var canvasNumber = canvasMatch[1];
+                    var objectMatch = manifestUrl.match(/iiif\/(?:2\/)?([^\/]+)\//);
+                    if (objectMatch) {
+                        var objectId = objectMatch[1];
+                        var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/!4000,4000/0/default.jpg';
+                        window.open(downloadUrl, '_blank');
+                    }
+                }
+            }
+        });
+
+        document.body.appendChild(downloadButton);
+
+        // Show/hide download button based on view mode
+        store.subscribe(function() {
+            var state = store.getState();
+            var windowIds = Object.keys(state.windows);
+            if (windowIds.length > 0) {
+                var view = state.windows[windowIds[0]].view;
+                downloadButton.style.display = (view === 'single') ? 'block' : 'none';
+            }
+        });
+
         // Use mousedown instead of click (Mirador blocks click events)
         document.addEventListener('mousedown', function (e) {
             var target = e.target;
-            // Walk up the DOM to find if we clicked on or inside a link
             while (target && target !== document) {
                 if (target.tagName === 'A' && target.href) {
                     e.stopPropagation();
@@ -199,46 +287,8 @@
                 }
                 target = target.parentElement;
             }
-        }, true); // Capture phase
+        }, true);
     }
-
-    // Add custom download button
-    var downloadButton = document.createElement('button');
-    downloadButton.innerHTML = '⬇';
-    downloadButton.style.cssText = 
-        'position: fixed; bottom: 25px; right: 160px; z-index: 9999; padding: 10px 15px; background: #8E1B15; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: Roboto, sans-serif; font-size: 14px; display: none;';
-
-    downloadButton.addEventListener('click', function() {
-        var state = store.getState();
-        var windowIds = Object.keys(state.windows);
-        if (windowIds.length > 0) {
-            var canvasId = state.windows[windowIds[0]].canvasId;
-            var canvasMatch = canvasId.match(/@(\d+)-canvas/);
-            if (canvasMatch) {
-                var canvasNumber = canvasMatch[1];
-                var objectMatch = manifestUrl.match(/iiif\/(?:2\/)?([^\/]+)\//);
-                if (objectMatch) {
-                    var objectId = objectMatch[1];
-                    // Construct IIIF image download URL with max 2000px dimension
-                    var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/!2000,2000/0/default.jpg';
-                    window.open(downloadUrl, '_blank');
-                }
-            }
-        }
-    });
-
-    document.body.appendChild(downloadButton);
-
-    // Show/hide download button based on view mode
-    store.subscribe(function() {
-        var state = store.getState();
-        var windowIds = Object.keys(state.windows);
-        if (windowIds.length > 0) {
-            var view = state.windows[windowIds[0]].view;
-            // Show button only in single page view
-            downloadButton.style.display = (view === 'single') ? 'block' : 'none';
-        }
-    });
 </script>
 </body>
 </html>
