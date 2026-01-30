@@ -181,7 +181,7 @@
 
                     if (currentCheck === lastCheckedViewport) {
                         stableCheckCount++;
-                        if (stableCheckCount >= 3) {
+                        if (stableCheckCount >= 2) {  // Changed from 3 to 2
                             clearInterval(stabilityCheck);
 
                             // NOW force the viewport to URL parameters
@@ -202,15 +202,15 @@
                             setTimeout(function() {
                                 allowUrlUpdates = true;
                                 console.log('URL updates enabled');
-                            }, 1000);
+                            }, 400);  // Changed from 1000 to 400
                         }
                     } else {
                         stableCheckCount = 0;
                         lastCheckedViewport = currentCheck;
                     }
                 }
-            }, 500);
-        }, 2000);
+            }, 200);  // Changed by kew from 500 to 200
+        }, 1200);  // Changed by kew from 2000 to 1200 (initial wait, push up again to 2000 if people on slow connections encounter problems)
 
         store.subscribe(function() {
             if (!allowUrlUpdates) return;
