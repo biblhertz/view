@@ -369,15 +369,16 @@
                     var objectMatch = manifestUrl.match(/iiif\/(?:2\/)?([^\/]+)\//);
                     if (objectMatch) {
                         var objectId = objectMatch[1];
-                        // Use native size if width <= 4000px, otherwise cap at 4000px
-                        var sizeParam = '4000,';  // safe default
+                        // Use native size if both dimensions <= 4000px, otherwise fit within 4000x4000 box
+                        var sizeParam = '!4000,4000';  // safe default: fit within box, preserve aspect ratio
                         try {
                             var canvases = state.manifests[manifestUrl].json.sequences[0].canvases;
                             var canvasData = canvases.find(function(c) { return c['@id'] === canvasId; });
-                            if (canvasData && canvasData.width && canvasData.width <= 4000) {
-                                sizeParam = 'full';  // native size, no upscaling requested
+                            if (canvasData && canvasData.width && canvasData.height &&
+                                canvasData.width <= 4000 && canvasData.height <= 4000) {
+                                sizeParam = 'full';  // native size, no scaling needed
                             }
-                        } catch(e) { /* fall through to 4000, default */ }
+                        } catch(e) { /* fall through to !4000,4000 default */ }
 
                         var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/' + sizeParam + '/0/default.jpg';
                         window.open(downloadUrl, '_blank');
