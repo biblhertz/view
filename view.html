@@ -343,7 +343,7 @@
                     var objectMatch = manifestUrl.match(/iiif\/(?:2\/)?([^\/]+)\//);
                     if (objectMatch) {
                         var objectId = objectMatch[1];
-                        var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/5000,/0/default.jpg';
+                        var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/4000,/0/default.jpg';  // limiting download size to 4000px width
                         window.open(downloadUrl, '_blank');
                     }
                 }
