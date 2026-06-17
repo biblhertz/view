@@ -45,7 +45,7 @@
 
     // uncomment ONLY for testing, must be commented for production!
     //itemParam = 'ab816400078'
-    
+
     // Build manifest URL from item parameter if manifest not provided
     // Beware the manifest2 fixed string - this should be changed in the future.
     if (!manifestUrl && itemParam) {
@@ -224,7 +224,7 @@
                 }
             }, 200);
         }, 1200);
-        
+
         store.subscribe(function() {
             if (!allowUrlUpdates) return;
 
@@ -327,23 +327,59 @@
         downloadButton.innerHTML = '⬇';
         downloadButton.setAttribute('aria-label', 'Download current image');
         downloadButton.setAttribute('aria-haspopup', 'true');
-        downloadButton.setAttribute('title', 'Download current image');
+        downloadButton.setAttribute('title', 'Switch to single view to download');
         downloadButton.setAttribute('type', 'button');
         downloadButton.style.cssText =
-            'position: fixed; top: 23.3px; right: 130px; z-index: 9999; padding: 1px 3px; background: transparent; color: gray; border: 2px solid gray; cursor: pointer; font-family: Roboto, sans-serif; font-size: 13px; display: none;';
+            'position: fixed; top: 23.3px; right: 130px; z-index: 9999; padding: 1px 3px; background: transparent; color: gray; border: 2px solid gray; cursor: pointer; font-family: Roboto, sans-serif; font-size: 13px; display: block;';
+
+        function updateDownloadButtonState(view) {
+            if (view === 'single') {
+                downloadButton.style.color = '#8E1B15';
+                downloadButton.style.borderColor = '#8E1B15';
+                downloadButton.setAttribute('title', 'Download current image');
+            } else {
+                downloadButton.style.color = 'gray';
+                downloadButton.style.borderColor = 'gray';
+                downloadButton.setAttribute('title', 'Switch to single view to download');
+            }
+        }
 
         downloadButton.addEventListener('click', function() {
             var state = store.getState();
             var windowIds = Object.keys(state.windows);
-            if (windowIds.length > 0) {
-                var canvasId = state.windows[windowIds[0]].canvasId;
+            if (windowIds.length === 0) return;
+
+            var windowId = windowIds[0];
+            var view = state.windows[windowId].view;
+
+            if (view !== 'single') {
+                // First click: switch to single view
+                store.dispatch({
+                    type: 'mirador/SET_WINDOW_VIEW_TYPE',
+                    windowId: windowId,
+                    viewType: 'single'
+                });
+            } else {
+                // Second click (already in single): download
+                var canvasId = state.windows[windowId].canvasId;
+                if (!canvasId) { return; }
                 var canvasMatch = canvasId.match(/@(\d+)-canvas/);
                 if (canvasMatch) {
                     var canvasNumber = canvasMatch[1];
                     var objectMatch = manifestUrl.match(/iiif\/(?:2\/)?([^\/]+)\//);
                     if (objectMatch) {
                         var objectId = objectMatch[1];
-                        var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/4000,/0/default.jpg';  // limiting download size to 4000px width
+                        // Use native size if width <= 4000px, otherwise cap at 4000px
+                        var sizeParam = '4000,';  // safe default
+                        try {
+                            var canvases = state.manifests[manifestUrl].json.sequences[0].canvases;
+                            var canvasData = canvases.find(function(c) { return c['@id'] === canvasId; });
+                            if (canvasData && canvasData.width && canvasData.width <= 4000) {
+                                sizeParam = 'full';  // native size, no upscaling requested
+                            }
+                        } catch(e) { /* fall through to 4000, default */ }
+
+                        var downloadUrl = 'https://dlib2.biblhertz.it/iiif/2/' + objectId + '@' + canvasNumber + '.jp2/full/' + sizeParam + '/0/default.jpg';
                         window.open(downloadUrl, '_blank');
                     }
                 }
@@ -352,13 +388,13 @@
 
         document.body.appendChild(downloadButton);
 
-        // Show/hide download button based on view mode
+        // Update button appearance based on view mode (button always visible)
         store.subscribe(function() {
             var state = store.getState();
             var windowIds = Object.keys(state.windows);
             if (windowIds.length > 0) {
                 var view = state.windows[windowIds[0]].view;
-                downloadButton.style.display = (view === 'single') ? 'block' : 'none';
+                updateDownloadButtonState(view);
             }
         });
 
