@@ -6,21 +6,88 @@
     <title>BHMPI Viewer</title>
     <script src="https://unpkg.com/mirador@latest/dist/mirador.min.js"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700&family=Libre+Baskerville:ital@1&display=swap">
+    <link rel="icon" type="image/svg+xml" href="/hub/favicon.svg">
     <style>
+        :root { --bh-header-h: 56px; }
+
         body {
             margin: 0;
             padding: 0;
         }
 
+        /* ── Site header ─────────────────────────────────────────────────────
+           Mirrors the header section of hub/bhr.css. bhr.css itself is NOT
+           linked here: its bare "header", "nav" and "*" rules would hit
+           Mirador, whose window top bar is an MUI AppBar (a <header>).
+           Everything is therefore scoped to #bh-header. */
+        #bh-header {
+            position: fixed; top: 0; left: 0; right: 0;
+            height: var(--bh-header-h);
+            z-index: 10000;                 /* above Mirador and the ⬇ button */
+            display: flex; align-items: stretch;
+            padding: 0 2.5rem;
+            box-sizing: border-box;
+            background: #0d2046;
+            box-shadow: 0 2px 12px rgba(0,0,0,.35);
+            font-family: 'Libre Franklin', sans-serif;
+        }
+        #bh-header .logo-slot {
+            display: flex; align-items: center;
+            min-width: 220px;
+            margin-right: 2rem; padding-right: 2rem;
+            border-right: 1px solid rgba(255,255,255,.12);
+            text-decoration: none;
+        }
+        #bh-header .logo-slot img { filter: brightness(0) invert(1); margin-right: 1.25rem; }
+        #bh-header .logo-name {
+            display: block;
+            font-weight: 700; font-size: .78rem; letter-spacing: .08em;
+            text-transform: uppercase; line-height: 1.2;
+            color: rgba(255,255,255,.95);
+        }
+        #bh-header .logo-sub {
+            display: block;
+            font-family: 'Libre Baskerville', serif; font-style: italic;
+            font-size: .72rem; letter-spacing: .02em; line-height: 1.35;
+            color: rgba(255,255,255,.5);
+        }
+        #bh-header nav { display: flex; align-items: center; gap: .25rem; flex: 1; }
+        #bh-header nav a {
+            display: flex; align-items: center;
+            height: var(--bh-header-h);
+            padding: 0 1rem;
+            box-sizing: border-box;
+            color: rgba(255,255,255,.6);
+            text-decoration: none;
+            font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+            border-bottom: 3px solid transparent;
+            transition: color .15s, border-color .15s;
+        }
+        #bh-header nav a:hover { color: #fff; border-color: rgba(255,255,255,.3); }
+
+        @media (max-width: 768px) {
+            :root { --bh-header-h: 48px; }
+            #bh-header { padding: 0 1rem; }
+            #bh-header .logo-slot div { display: none; }
+            #bh-header .logo-slot { min-width: 0; border-right: none; margin-right: 0; padding-right: .75rem; }
+            #bh-header nav { gap: 0; }
+            #bh-header nav a { padding: 0 .6rem; font-size: .68rem; letter-spacing: .06em; }
+        }
+
         #viewer {
             position: absolute;
-            top: 0;
+            top: var(--bh-header-h);
             left: 0;
             right: 0;
             bottom: 0;
-            width: 100%;
-            height: 100vh;
         }
+
+        /* Mirador lays out its window with react-mosaic, whose stock CSS insets
+           the root by 3px and gives each tile a 3px margin: the 6px frame
+           around the window. Single fixed window here, so drop both. */
+        #viewer .mosaic-root { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
+        #viewer .mosaic-tile { margin: 0 !important; }
 
         /* Force pointer events on annotation containers and links */
         #viewer a,
@@ -33,6 +100,19 @@
 </head>
 <body>
 <!-- byte-conform copy of:  https://viewer-f044f0.pages.mpcdf.de -->
+<header id="bh-header">
+    <a class="logo-slot" href="https://www.biblhertz.it">
+        <img src="/hub/bhmpi.svg" alt="Bibliotheca Hertziana" height="32">
+        <div>
+            <span class="logo-name">Bibliotheca Hertziana</span>
+            <span class="logo-sub">Max-Planck-Institut für Kunstgeschichte</span>
+        </div>
+    </a>
+    <nav>
+        <a href="/hub/ocr-index">Volumes</a>
+<!--        <a href="/hub/index">Map</a>-->
+    </nav>
+</header>
 <div id="viewer"></div>
 
 <script type="text/javascript">
@@ -53,7 +133,7 @@
     }
 
     if (!manifestUrl) {
-        document.body.innerHTML = '<h1>Error: No manifest or item provided</h1>';
+        document.getElementById('viewer').innerHTML = '<h1 style="font-family:Roboto,sans-serif;padding:2rem;">Error: No manifest or item provided</h1>';
     } else {
         var windowConfig = {
             loadedManifest: manifestUrl
@@ -135,10 +215,10 @@
                     palette: {
                         type: 'dark',
                         primary: {
-                            main: '#8E1B15',
+                            main: '#1e3f7a',
                         },
                         secondary: {
-                            main: '#8E1B15',
+                            main: '#1e3f7a',
                         }
                     }
                 },
@@ -146,10 +226,10 @@
                     palette: {
                         type: 'light',
                         primary: {
-                            main: '#8E1B15',
+                            main: '#1e3f7a',
                         },
                         secondary: {
-                            main: '#8E1B15',
+                            main: '#1e3f7a',
                         }
                     }
                 },
@@ -330,12 +410,12 @@
         downloadButton.setAttribute('title', 'Switch to single view to download');
         downloadButton.setAttribute('type', 'button');
         downloadButton.style.cssText =
-            'position: fixed; top: 23.3px; right: 130px; z-index: 9999; padding: 1px 3px; background: transparent; color: gray; border: 2px solid gray; cursor: pointer; font-family: Roboto, sans-serif; font-size: 13px; display: block;';
+            'position: fixed; top: calc(var(--bh-header-h) + 16px); right: 130px; z-index: 9999; padding: 1px 3px; background: transparent; color: gray; border: 2px solid gray; cursor: pointer; font-family: Roboto, sans-serif; font-size: 13px; display: block;';
 
         function updateDownloadButtonState(view) {
             if (view === 'single') {
-                downloadButton.style.color = '#8E1B15';
-                downloadButton.style.borderColor = '#8E1B15';
+                downloadButton.style.color = '#1e3f7a';
+                downloadButton.style.borderColor = '#1e3f7a';
                 downloadButton.setAttribute('title', 'Download current image');
             } else {
                 downloadButton.style.color = 'gray';
@@ -401,6 +481,7 @@
 
         // Use mousedown instead of click (Mirador blocks click events)
         document.addEventListener('mousedown', function (e) {
+            if (!document.getElementById('viewer').contains(e.target)) return;  // header links behave normally
             var target = e.target;
             while (target && target !== document) {
                 if (target.tagName === 'A' && target.href) {
